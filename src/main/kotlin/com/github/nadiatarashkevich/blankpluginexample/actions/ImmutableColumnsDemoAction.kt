@@ -6,7 +6,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.CollectionItemEditor
-import com.intellij.util.ui.ImmutableColumnInfo
+import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.table.TableModelEditor
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -28,7 +28,12 @@ class ImmutableColumnsDemoAction : AnAction() {
     }
 }
 
-private data class Person(val name: String, val age: Int)
+// Use mutable properties to support in-place editing expected by TableModelEditor.
+// TableModelEditor currently mutates the underlying item via ColumnInfo.setValue(),
+// and does not apply replacements returned from ImmutableColumnInfo.withValue().
+// Therefore, to make edits actually apply, the model items must be mutable and
+// columns should implement setValue to mutate them.
+private data class Person(var name: String, var age: Int)
 
 private class ImmutableDataDialog(project: Project?) : DialogWrapper(project) {
     private val initial = listOf(
@@ -41,16 +46,16 @@ private class ImmutableDataDialog(project: Project?) : DialogWrapper(project) {
     init {
         title = "ImmutableColumnInfo Demo"
 
-        val nameCol = object : ImmutableColumnInfo<Person, String>("Name") {
+        val nameCol = object : ColumnInfo<Person, String>("Name") {
             override fun valueOf(item: Person): String = item.name
-            override fun withValue(item: Person, value: String): Person = item.copy(name = value)
+            override fun setValue(item: Person, value: String) { item.name = value }
             override fun isCellEditable(item: Person): Boolean = true
             override fun getColumnClass(): Class<*> = String::class.java
         }
 
-        val ageCol = object : ImmutableColumnInfo<Person, Int>("Age") {
+        val ageCol = object : ColumnInfo<Person, Int>("Age") {
             override fun valueOf(item: Person): Int = item.age
-            override fun withValue(item: Person, value: Int): Person = item.copy(age = value)
+            override fun setValue(item: Person, value: Int) { item.age = value }
             override fun isCellEditable(item: Person): Boolean = true
             override fun getColumnClass(): Class<*> = Int::class.javaPrimitiveType ?: Integer::class.java
         }
